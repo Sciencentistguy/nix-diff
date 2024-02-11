@@ -44,7 +44,7 @@
           program = "${pkgs.nix-diff}/bin/nix-diff";
         };
 
-        devShells.default = pkgs.haskellPackages.nix-diff.env;
+        devShells.default = pkgs.haskellPackages.nix-diff.env.overrideAttrs (old: {buildInputs = old.buildInputs ++ [pkgs.haskell-language-server];});
       }
     ));
 }

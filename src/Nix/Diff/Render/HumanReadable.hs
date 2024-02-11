@@ -20,7 +20,8 @@ import Numeric.Natural (Natural)
 import qualified Control.Monad.Reader
 import qualified Data.Map
 import qualified Data.Set
-import qualified Data.Text            as Text
+import qualified Data.Text                 as Text
+import qualified Data.Text.Internal.Search as Text
 import qualified Patience
 
 #if !MIN_VERSION_base(4,15,1)
@@ -29,6 +30,9 @@ import Control.Monad.Fail (MonadFail)
 
 import Nix.Diff
 import Nix.Diff.Types
+import Debug.Trace (traceShow)
+import Control.Monad (join)
+import Data.List (elemIndices, nub, sort)
 
 
 data RenderContext = RenderContext
@@ -264,10 +268,15 @@ renderDiffHumanReadable = \case
               then "''\n" <> indentedText <> prefix <> "''"
               else text
             where
-              indentedText =
-                  (Text.unlines . fmap indentLine . Text.lines) text
-                where
-                  indentLine line = prefix <> "    " <> line
+              indentedText = (Text.unlines . filterImportantLines . fmap indentLine . Text.lines) text
+              indentLine line = prefix <> "    " <> line
+              filterImportantLines lines = let
+                linesContaining substr x = elemIndices True $ not . null . Text.indices substr <$> x
+                linesWithRemoval = linesContaining "\ESC[41m" lines
+                linesWithAddtion = linesContaining "\ESC[42m" lines
+                linesChanged = linesWithAddtion ++ linesWithRemoval
+                indicesToPrint = nub $ linesChanged >>= \x -> [x-2, x-1, x, x+1, x+2]
+                in fmap snd $ filter (\(i, _) -> i `elem` indicesToPrint) $ zip [0..] lines
 
       let renderChunk (Patience.Old  l  ) =
               redBackground   orientation tty l
